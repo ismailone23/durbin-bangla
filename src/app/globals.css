@@ -1,0 +1,235 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+  --font-bn: var(--font-hind), var(--font-manrope), sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  /* Colours from the restaurant: plaster walls, burnt-orange feature wall, mahogany tables. */
+  --background: #faf7f2;
+  --foreground: #2a1a16;
+  --card: #ffffff;
+  --card-foreground: #2a1a16;
+  --popover: #ffffff;
+  --popover-foreground: #2a1a16;
+  --primary: #b8561a;
+  --primary-foreground: #ffffff;
+  --secondary: #f1ebe2;
+  --secondary-foreground: #2a1a16;
+  --muted: #f3eee6;
+  --muted-foreground: #6e5b50;
+  --accent: #f1ebe2;
+  --accent-foreground: #2a1a16;
+  --destructive: #b42318;
+  --border: #e6dccf;
+  --input: #e6dccf;
+  --ring: #b8561a;
+  --chart-1: #b8561a;
+  --chart-2: #d9a441;
+  --chart-3: #6b3a3f;
+  --chart-4: #8a7a6e;
+  --chart-5: #c9bcae;
+  --radius: 0.625rem;
+  --sidebar: #f5f0e8;
+  --sidebar-foreground: #2a1a16;
+  --sidebar-primary: #b8561a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ebe3d7;
+  --sidebar-accent-foreground: #2a1a16;
+  --sidebar-border: #e6dccf;
+  --sidebar-ring: #b8561a;
+}
+
+.dark {
+  --background: #1f1411;
+  --foreground: #f5ede3;
+  --card: #2b1d18;
+  --card-foreground: #f5ede3;
+  --popover: #2b1d18;
+  --popover-foreground: #f5ede3;
+  --primary: #e07a35;
+  --primary-foreground: #1f1411;
+  --secondary: #3a2a24;
+  --secondary-foreground: #f5ede3;
+  --muted: #3a2a24;
+  --muted-foreground: #bba99b;
+  --accent: #3a2a24;
+  --accent-foreground: #f5ede3;
+  --destructive: #f07a6a;
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 15%);
+  --ring: #e07a35;
+  --chart-1: #e07a35;
+  --chart-2: #d9a441;
+  --chart-3: #c08a8f;
+  --chart-4: #8a7a6e;
+  --chart-5: #5a4a40;
+  --sidebar: #2b1d18;
+  --sidebar-foreground: #f5ede3;
+  --sidebar-primary: #e07a35;
+  --sidebar-primary-foreground: #1f1411;
+  --sidebar-accent: #3a2a24;
+  --sidebar-accent-foreground: #f5ede3;
+  --sidebar-border: rgb(255 255 255 / 10%);
+  --sidebar-ring: #e07a35;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+html { --header-h: 4.5rem; } /* the site header measures itself and updates this */
+
+/* ── Public site ────────────────────────────────────────────────────────────
+   Colours from the room itself: mahogany tables (deep ground), the burnt-orange
+   feature wall (the one action, and the deeper wall tone as the closing field),
+   white plates (the reading field). Staff console keeps the tokens above. */
+.site {
+  --deep: #1c110d;
+  --deep-2: #2b1a14;
+  --deep-ink: #f2f2f1;
+  --deep-soft: #c4b2a5;
+  --wall: #8e3c12;
+  --wall-ink: #ffffff;
+
+  --background: #ffffff;
+  --foreground: #1f1310;
+  --card: #f3f2f1;
+  --card-foreground: #1f1310;
+  --popover: #ffffff;
+  --popover-foreground: #1f1310;
+  --primary: #b8561a;
+  --primary-foreground: #ffffff;
+  --secondary: #f0e8e2;
+  --secondary-foreground: #1f1310;
+  --muted: #f3ede8;
+  --muted-foreground: #66534a;
+  --accent: #f0e8e2;
+  --accent-foreground: #1f1310;
+  --border: #e2d6cc;
+  --input: #cdbcae;
+  --ring: #b8561a;
+  --radius: 0px;
+  --font-sans: var(--font-work), system-ui, sans-serif;
+  --font-heading: var(--font-work), system-ui, sans-serif;
+
+  --step-small: 0.9375rem;
+  --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+  --step-state: clamp(1.5rem, 1.1rem + 1.2vw, 2.25rem);
+  --step-head: clamp(2.75rem, 1.4rem + 5.2vw, 6rem);
+  --step-xl: clamp(6rem, 4rem + 8vw, 12rem);
+  --step-xxl: 15rem;
+  --gutter: clamp(16px, 2.4vw, 32px);
+  --ease: cubic-bezier(0.2, 0.7, 0.1, 1);
+
+  font-family: var(--font-sans);
+  font-size: var(--step-body);
+  background: var(--background);
+  color: var(--foreground);
+}
+.site .display {
+  font-family: var(--font-anton), "Arial Narrow", sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 0.88;
+}
+.site .bn { font-family: var(--font-bn); }
+body:has(> .site), body:has(.site) { background: #ffffff; }
+.site .deep { background: var(--deep); color: var(--deep-ink); }
+.site .frame { padding-inline: var(--gutter); }
+
+/* shadcn surfaces on the public site: a tone step, no outline ring, no rule above footers. */
+.site [data-slot="card"] { box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+.site [data-slot="card-footer"] { border-top: 0; background: transparent; }
+.site [data-slot="button"] { font-weight: 600; }
+/* Readable sizes on the guest flows: shadcn defaults to 12-14px. */
+.site [data-slot="card"], .site [data-slot="field-label"], .site [data-slot="field-legend"], .site [data-slot="toggle-group-item"], .site [data-slot="input"], .site [data-slot="select-trigger"], .site [data-slot="alert"] { font-size: 1rem; }
+.site [data-slot="card-title"] { font-size: var(--step-lead); font-weight: 600; }
+.site [data-slot="card-description"], .site [data-slot="field-description"], .site .text-xs, .site .text-sm { font-size: var(--step-small); }
+.site [data-slot="separator"] { background: transparent; }
+
+/* Controls answer the hand. */
+.site a, .site button { transition: color .2s var(--ease), background-color .2s var(--ease), transform .2s var(--ease), opacity .2s var(--ease); }
+.site .link { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.25em; text-decoration-color: color-mix(in oklch, currentColor 35%, transparent); }
+.site .link:hover { text-decoration-color: currentColor; }
+.site .action { display: inline-flex; align-items: center; justify-content: center; gap: .5em; min-height: 52px; padding: 0 28px; background: var(--primary); color: var(--primary-foreground); font-weight: 600; }
+.site .action:hover { background: #9e4612; }
+.site .action:active { transform: translateY(1px); }
+.site .action:focus-visible, .site a:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+
+/* The signature move: the name sliding through the lens. */
+@keyframes slide { to { transform: translateX(-50%); } }
+.site .marquee { display: flex; width: max-content; animation: slide 48s linear infinite; }
+.site .marquee:hover { animation-play-state: paused; }
+@keyframes drift { from { transform: scale(1.04); } to { transform: scale(1.14); } }
+.site .drift { animation: drift 18s var(--ease) infinite alternate; }
+
+/* Section entrances: hidden only once script has run, so content never depends on it. */
+.site.js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity .8s var(--ease), transform .8s var(--ease); transition-delay: calc(var(--i, 0) * 80ms); }
+.site.js [data-reveal].in { opacity: 1; transform: none; }
+
+/* A menu page settling after a turn: it overshoots, swings back, and lies flat, like a sheet of paper. */
+@keyframes paper-settle-a { 0% { transform: rotateY(-7deg) skewY(1.2deg); } 30% { transform: rotateY(3deg) skewY(-.6deg); } 55% { transform: rotateY(-1.5deg) skewY(.3deg); } 78% { transform: rotateY(.6deg); } 100% { transform: rotateY(0); } }
+@keyframes paper-settle-b { 0% { transform: rotateY(-7deg) skewY(1.2deg); } 30% { transform: rotateY(3deg) skewY(-.6deg); } 55% { transform: rotateY(-1.5deg) skewY(.3deg); } 78% { transform: rotateY(.6deg); } 100% { transform: rotateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .site .marquee { animation: none; transform: translateX(-25%); }
+  .site .drift { animation: none; }
+  .site.js [data-reveal] { opacity: 1; transform: none; transition: none; }
+}
