@@ -1,20 +1,12 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Mark, PHONE } from "@/components/site";
 import { usePoll } from "@/lib/client";
 import { taka } from "@/lib/format";
+import { type Block, type Dish, heights, paginate, type Sizes } from "@/lib/menu-layout";
 
-type Dish = {
-  id: number;
-  name: string;
-  category: string;
-  price: number;
-  remaining: number;
-  signature: number;
-};
-
-/** Short English names for the printed menu's sections (used in the section links and the small line above a title). */
+/** Short English names for the printed menu's sections (used in the page links and the small line above a title). */
 const EN: Record<string, string> = {
   "Shokaler Sohor": "Morning",
   "Bhor Dupure": "Midday",
@@ -25,17 +17,23 @@ const EN: Record<string, string> = {
   "Mukh Mitha": "Sweets",
 };
 
-/** Four pages, two columns each as on the printed menu (stacked on phones). "@cover" and "@info" are the masthead and the closing notes. */
-const SPREADS: string[][][] = [
-  [["@cover"], ["Shokaler Sohor"]],
-  [["Bhor Dupure"], ["Bharta o Bhaji'r Bhalobasha"]],
-  [["Curry'r Golpo"], ["Mache bhate Bangali"]],
-  [["Cheka Pora"], ["Mukh Mitha", "@info"]],
-];
+/** Real photos of the restaurant's food, matched to the section a light page holds. */
+const PHOTOS: Record<string, [string, string]> = {
+  "Shokaler Sohor": ["/photos/curries.jpg", "Curries and roti at Durbin Bangla"],
+  "Bhor Dupure": ["/photos/thali.jpg", "A brass tray of curries at Durbin Bangla"],
+  "Bharta o Bhaji'r Bhalobasha": ["/photos/dal.jpg", "A bowl of daal at Durbin Bangla"],
+  "Curry'r Golpo": ["/photos/thali.jpg", "A brass tray of curries at Durbin Bangla"],
+  "Mache bhate Bangali": ["/photos/curries.jpg", "Curries and roti at Durbin Bangla"],
+  "Cheka Pora": ["/photos/busy-room.jpg", "A full dining room at Durbin Bangla"],
+  "Mukh Mitha": ["/photos/rasgulla.jpg", "Rasgulla made in the Durbin Bangla kitchen"],
+};
+const MIN_PHOTO = 180; // px: smaller spare space stays as margin
 
 const INK = "#2e2826";
 const PAPER = "#fbf6ec";
 const ACCENT = "var(--primary)";
+const BLOCK_GAP = 48; // gap-12 between blocks in a column
+const LIST_GAP = 24; // mt-6 between a heading and its dishes
 
 // Paint flecks across the paper, like the printed menu: fixed positions so every render matches.
 // Single quotes only inside the SVG: it sits in a CSS url("…"), where a double quote would end the value.
@@ -46,25 +44,80 @@ const FLECKS = (() => {
   return `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'>${dots}</svg>")`;
 })();
 
+/** Wide screens show two columns a page (4 spreads); below 1024px each column is its own page (8 pages). */
+function useWide() {
+  const [wide, setWide] = useState(true);
+  useEffect(() => {
+    const m = matchMedia("(min-width: 1024px)");
+    const on = () => setWide(m.matches);
+    on();
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return wide;
+}
+
+/** The padding and column grid of a page; the hidden measuring copy uses the same classes so its widths match. */
+const pageGrid = (two: boolean) => `grid gap-12 px-6 pb-14 pt-4 sm:px-12 ${two ? "lg:grid-cols-2 lg:gap-20 lg:px-16" : ""}`;
+
 export function MenuBook() {
   const { data } = usePoll<{ menu: Dish[] }>("/api/menu", 30000);
+  const wide = useWide();
 
-  const bySection = useMemo(() => {
+  const sections = useMemo(() => {
     const m = new Map<string, Dish[]>();
     for (const d of data?.menu ?? []) m.set(d.category, [...(m.get(d.category) ?? []), d]);
-    return m;
+    return [...m.entries()];
   }, [data]);
 
-  // The four printed spreads. A section the plan doesn't know (staff added one) joins the last page.
+  // Measure every heading and dish as it really renders at this width, so the pages balance on true heights.
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [sizes, setSizes] = useState<Sizes | null>(null);
+  useLayoutEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    const read = () => {
+      const h = (n: Element | null) => (n ? n.getBoundingClientRect().height : 0);
+      const all = (attr: string) => new Map([...el.querySelectorAll(`[${attr}]`)].map((n) => [n.getAttribute(attr)!, h(n)]));
+      const heads = all("data-m-head");
+      const conts = all("data-m-cont");
+      const dishes = all("data-m-dish");
+      setSizes({
+        cover: h(el.querySelector("[data-m-cover]")),
+        info: h(el.querySelector("[data-m-info]")) + BLOCK_GAP,
+        head: (name) => (heads.get(name) ?? 0) + LIST_GAP + BLOCK_GAP,
+        cont: (name) => (conts.get(name) ?? 0) + LIST_GAP + BLOCK_GAP,
+        dish: (d) => dishes.get(String(d.id)) ?? 0,
+      });
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [sections, wide]);
+
+  // Eight balanced columns: one a page on phones, two a page on wide screens.
   const pages = useMemo(() => {
-    const all = [...bySection.keys()];
-    if (!all.length) return [] as string[][][];
-    const planned = new Set(SPREADS.flat(2));
-    const extra = all.filter((c) => !planned.has(c));
-    const spreads = SPREADS.map((p) => p.map((col) => col.filter((c) => c.startsWith("@") || bySection.has(c))));
-    if (extra.length) spreads[spreads.length - 1][0].push(...extra);
+    if (!sections.length) return [] as Block[][][];
+    const cols = paginate(sections, sizes ?? undefined);
+    // Where a column has room left, a real photo of that section's food fills it (once sizes are measured).
+    if (sizes) {
+      const h = heights(cols, sizes);
+      const full = Math.max(...h);
+      cols.forEach((col, i) => {
+        const spare = full - h[i] - BLOCK_GAP;
+        const sec = [...col].reverse().find((b) => b.kind === "section");
+        if (spare >= MIN_PHOTO && sec?.kind === "section" && PHOTOS[sec.name] && !col.some((b) => b.kind === "info")) {
+          const [src, alt] = PHOTOS[sec.name];
+          col.push({ kind: "photo", src, alt, height: Math.floor(spare) });
+        }
+      });
+    }
+    if (!wide) return cols.map((c) => [c]);
+    const spreads: Block[][][] = [];
+    for (let i = 0; i < cols.length; i += 2) spreads.push(cols.slice(i, i + 2));
     return spreads;
-  }, [bySection]);
+  }, [sections, sizes, wide]);
 
   const [cur, setCur] = useState(0);
   const [drag, setDrag] = useState<{ dir: 1 | -1; p: number } | null>(null);
@@ -74,6 +127,12 @@ export function MenuBook() {
   const start = useRef<{ x: number; w: number; id: number } | null>(null);
   const n = pages.length;
   useEffect(() => setCur((c) => Math.min(c, Math.max(0, n - 1))), [n]);
+  // Keep the reader on the same content when the layout switches between 4 spreads and 8 pages.
+  const wasWide = useRef(wide);
+  useEffect(() => {
+    if (wasWide.current !== wide) setCur((c) => (wide ? Math.floor(c / 2) : c * 2));
+    wasWide.current = wide;
+  }, [wide]);
 
   const go = (to: number) => setCur(Math.max(0, Math.min(n - 1, to)));
 
@@ -118,14 +177,43 @@ export function MenuBook() {
   if (!data) return <p className="py-24 text-center">Setting the table…</p>;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="relative mx-auto max-w-6xl">
       <nav aria-label="Menu pages" className="mb-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-(length:--step-small) font-semibold">
         {pages.map((cols, k) => (
           <button key={k} type="button" onClick={() => go(k)} aria-current={k === cur ? "page" : undefined} className="underline-offset-8 hover:underline aria-[current=page]:underline">
-            {cols.flat().filter((c) => !c.startsWith("@")).map((c) => EN[c] ?? c).join(" & ")}
+            {[...new Set(cols.flat().flatMap((b) => (b.kind === "section" ? [EN[b.name] ?? b.name] : [])))].join(" & ") || "Welcome"}
           </button>
         ))}
       </nav>
+
+      {/* Hidden copy of every piece, laid out at a real column's width, for measuring. */}
+      <div ref={measureRef} aria-hidden inert className="pointer-events-none invisible absolute inset-x-0 top-0 -z-10" style={{ color: INK }}>
+        <div className={pageGrid(wide)}>
+          <div className="flex flex-col">
+            <div data-m-cover>
+              <Masthead />
+            </div>
+            <div data-m-info>
+              <Info />
+            </div>
+            {sections.map(([name, ds], i) => (
+              <Fragment key={name}>
+                <div data-m-head={name}>
+                  <SectionHead name={name} curved={i % 2 === 0} cont={false} idSuffix="m" />
+                </div>
+                <div data-m-cont={name}>
+                  <SectionHead name={name} curved={false} cont idSuffix="m" />
+                </div>
+                <ul>
+                  {ds.map((d) => (
+                    <DishRow key={d.id} d={d} measure />
+                  ))}
+                </ul>
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <div
         role="region"
@@ -151,7 +239,7 @@ export function MenuBook() {
               key={k}
               aria-hidden={k !== cur}
               inert={k !== cur}
-              className="relative overflow-hidden [grid-area:1/1] [backface-visibility:hidden] [transform-origin:left_center] motion-safe:transition-transform motion-safe:duration-700 motion-safe:ease-[cubic-bezier(.3,.7,.2,1)]"
+              className="relative flex flex-col overflow-hidden [grid-area:1/1] [backface-visibility:hidden] [transform-origin:left_center] motion-safe:transition-transform motion-safe:duration-700 motion-safe:ease-[cubic-bezier(.3,.7,.2,1)]"
               style={{
                 zIndex: n - k,
                 transform: `rotateY(${a}deg)${bend}`,
@@ -170,16 +258,26 @@ export function MenuBook() {
               <p aria-hidden className="display -mt-[0.32em] whitespace-nowrap text-center text-[clamp(4rem,11vw,10rem)] leading-none text-transparent" style={{ WebkitTextStroke: `1.5px ${ACCENT}` }}>
                 Durbin Bangla
               </p>
-              <div className={`grid gap-12 px-6 pb-14 pt-4 sm:px-12 ${cols.length > 1 ? "lg:grid-cols-[5fr_7fr] lg:gap-20 lg:px-16" : ""}`}>
+              {/* Content sits centred on the page, so any spare paper becomes even margins above and below. */}
+              <div className={`${pageGrid(cols.length > 1)} flex-1`}>
                 {cols.map((col, ci) => (
-                  <div key={ci} className="flex flex-col gap-12">
-                    {col.map((cat) =>
-                      cat === "@cover" ? (
-                        <Masthead key={cat} />
-                      ) : cat === "@info" ? (
-                        <Info key={cat} />
+                  <div key={ci} className="flex flex-col justify-center gap-12">
+                    {col.map((b, bi) =>
+                      b.kind === "cover" ? (
+                        <Masthead key="cover" />
+                      ) : b.kind === "photo" ? (
+                        <img key="photo" src={b.src} alt={b.alt} loading="lazy" draggable={false} className="w-full object-cover" style={{ height: b.height }} />
+                      ) : b.kind === "info" ? (
+                        <Info key="info" />
                       ) : (
-                        <Section key={cat} name={cat} dishes={bySection.get(cat) ?? []} curved={(ci + col.indexOf(cat)) % 2 === 0} ruled={ci === 1} />
+                        <section key={`${b.name}-${bi}`} aria-label={b.cont ? `${b.name}, continued` : b.name}>
+                          <SectionHead name={b.name} curved={b.curved} cont={b.cont} idSuffix={`${k}`} />
+                          <ul className="mt-6 flex flex-col">
+                            {b.dishes.map((d) => (
+                              <DishRow key={d.id} d={d} />
+                            ))}
+                          </ul>
+                        </section>
                       ),
                     )}
                   </div>
@@ -224,47 +322,50 @@ function Masthead() {
   );
 }
 
-function Section({ name, dishes, curved, ruled }: { name: string; dishes: Dish[]; curved: boolean; ruled: boolean }) {
-  const id = `arc-${name.replace(/[^a-z]/gi, "")}`;
+function SectionHead({ name, curved, cont, idSuffix }: { name: string; curved: boolean; cont: boolean; idSuffix: string }) {
+  const id = `arc-${name.replace(/[^a-z]/gi, "")}-${idSuffix}`;
+  if (cont)
+    return (
+      <h2 className="display text-center text-2xl tracking-[0.1em]">
+        {name} <span className="font-serif text-lg normal-case italic tracking-normal">continued</span>
+      </h2>
+    );
+  if (curved)
+    return (
+      <h2 className="mx-auto max-w-sm">
+        <svg viewBox="0 0 400 90" className="w-full" role="img" aria-label={name}>
+          <path id={id} d="M20 82 Q200 2 380 82" fill="none" />
+          <text className="display" fontSize="38" letterSpacing="2" fill={INK} textAnchor="middle" {...(name.length > 16 ? { textLength: 350, lengthAdjust: "spacingAndGlyphs" } : {})}>
+            <textPath href={`#${id}`} startOffset="50%">{name.toUpperCase()}</textPath>
+          </text>
+        </svg>
+      </h2>
+    );
   return (
-    <section aria-label={name}>
-      {curved ? (
-        <h2 className="mx-auto max-w-sm">
-          <svg viewBox="0 0 400 90" className="w-full" role="img" aria-label={name}>
-            <path id={id} d="M20 82 Q200 2 380 82" fill="none" />
-            <text className="display" fontSize="38" letterSpacing="2" fill={INK} textAnchor="middle" {...(name.length > 16 ? { textLength: 350, lengthAdjust: "spacingAndGlyphs" } : {})}>
-              <textPath href={`#${id}`} startOffset="50%">{name.toUpperCase()}</textPath>
-            </text>
-          </svg>
-        </h2>
-      ) : (
-        <header className="text-center">
-          <p className="display mb-1 text-xl tracking-[0.18em]">{EN[name] ?? ""}</p>
-          <h2 className="display text-[clamp(2.25rem,1.6rem+2vw,3.5rem)] tracking-[0.03em]">{name}</h2>
-          <p className="display mt-2 flex items-center justify-center gap-3 text-base tracking-[0.16em]">
-            Prices in taka
-            <span className="grid h-9 w-16 place-items-center text-lg" style={{ color: ACCENT, clipPath: "polygon(50% 0,100% 50%,50% 100%,0 50%)", background: ACCENT }}>
-              <span className="grid h-[calc(100%-3px)] w-[calc(100%-5px)] place-items-center" style={{ background: PAPER, clipPath: "polygon(50% 0,100% 50%,50% 100%,0 50%)" }}>৳</span>
-            </span>
-            Plus 5% VAT
-          </p>
-        </header>
-      )}
-      <ul className="mt-6 flex flex-col">
-        {dishes.map((d) => (
-          <li key={d.id} className={`py-2.5 ${ruled ? "border-b" : ""} ${d.remaining === 0 ? "opacity-45" : ""}`} style={ruled ? { borderColor: "rgb(46 40 38 / .45)" } : undefined}>
-            <div className="flex items-baseline gap-2">
-              <span className="display text-[1.15rem] tracking-[0.12em]">{d.name}</span>
-              <span aria-hidden className="min-w-6 flex-1 translate-y-[-0.3em] border-b-2 border-dotted" style={{ borderColor: INK }} />
-              <span className="display text-[1.15rem] tracking-[0.08em] tabular-nums">{taka(d.price)}</span>
-            </div>
-            {(d.signature || d.remaining === 0) ? (
-              <p className="font-serif italic">{d.remaining === 0 ? "Sold out today" : "House favourite"}</p>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-    </section>
+    <header className="text-center">
+      <p className="display mb-1 text-xl tracking-[0.18em]">{EN[name] ?? ""}</p>
+      <h2 className="display text-[clamp(2.25rem,1.6rem+2vw,3.5rem)] tracking-[0.03em]">{name}</h2>
+      <p className="display mt-2 flex items-center justify-center gap-3 text-base tracking-[0.16em]">
+        Prices in taka
+        <span className="grid h-9 w-16 place-items-center text-lg" style={{ color: ACCENT, clipPath: "polygon(50% 0,100% 50%,50% 100%,0 50%)", background: ACCENT }}>
+          <span className="grid h-[calc(100%-3px)] w-[calc(100%-5px)] place-items-center" style={{ background: PAPER, clipPath: "polygon(50% 0,100% 50%,50% 100%,0 50%)" }}>৳</span>
+        </span>
+        Plus 5% VAT
+      </p>
+    </header>
+  );
+}
+
+function DishRow({ d, measure = false }: { d: Dish; measure?: boolean }) {
+  return (
+    <li data-m-dish={measure ? d.id : undefined} className={`border-b py-2.5 ${d.remaining === 0 ? "opacity-45" : ""}`} style={{ borderColor: "rgb(46 40 38 / .45)" }}>
+      <div className="flex items-baseline gap-2">
+        <span className="display text-[1.15rem] tracking-[0.12em]">{d.name}</span>
+        <span aria-hidden className="min-w-6 flex-1 translate-y-[-0.3em] border-b-2 border-dotted" style={{ borderColor: INK }} />
+        <span className="display text-[1.15rem] tracking-[0.08em] tabular-nums">{taka(d.price)}</span>
+      </div>
+      {d.signature || d.remaining === 0 ? <p className="font-serif italic">{d.remaining === 0 ? "Sold out today" : "House favourite"}</p> : null}
+    </li>
   );
 }
 
@@ -274,8 +375,12 @@ function Info() {
       <p className="font-serif italic">Prices in taka. 5% VAT applies as per government rule.</p>
       <p className="display text-xl tracking-[0.12em]">{PHONE}</p>
       <div className="flex flex-wrap justify-center gap-4">
-        <Link href="/order" className="action">Pre-order for pickup</Link>
-        <Link href="/book" className="link self-center font-semibold">Book a table</Link>
+        <Link href="/order" className="action">
+          Pre-order for pickup
+        </Link>
+        <Link href="/book" className="link self-center font-semibold">
+          Book a table
+        </Link>
       </div>
     </section>
   );
