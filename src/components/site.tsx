@@ -89,12 +89,20 @@ export function SiteHeader() {
   const path = usePathname();
   const ref = useRef<HTMLElement>(null);
   const [solid, setSolid] = useState(false);
+  const [hidden, setHidden] = useState(false);
   useEffect(() => {
     const el = ref.current!;
     // Publish the header's height so the first section can start underneath it.
     const ro = new ResizeObserver(() => document.documentElement.style.setProperty("--header-h", `${el.offsetHeight}px`));
     ro.observe(el);
-    const onScroll = () => setSolid(window.scrollY > 8);
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setSolid(y > 8);
+      // Out of the way while reading down the page; back the moment you scroll up (always shown near the top).
+      if (Math.abs(y - last) > 6) setHidden(y > last && y > el.offsetHeight);
+      last = y;
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => (ro.disconnect(), window.removeEventListener("scroll", onScroll));
@@ -102,8 +110,9 @@ export function SiteHeader() {
   return (
     <header
       ref={ref}
-      className="sticky top-0 z-40 -mb-(--header-h) transition-colors duration-300"
-      style={{ background: solid ? "var(--deep)" : "transparent", color: "var(--deep-ink)" }}
+      onFocusCapture={() => setHidden(false)}
+      className="sticky top-0 z-40 -mb-(--header-h) transition-[background-color,transform] duration-300"
+      style={{ background: solid ? "var(--deep)" : "transparent", color: "var(--deep-ink)", transform: hidden ? "translateY(-100%)" : undefined }}
     >
       <div className="frame flex h-18 items-center justify-between gap-6">
         <Wordmark />
