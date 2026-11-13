@@ -144,10 +144,25 @@ function open(): Db {
   const db = new DatabaseSync(
     process.env.DB_FILE ?? path.join(process.cwd(), "data.db"),
   );
+  // busy_timeout first: switching to WAL needs a lock, and another process may be holding it.
   db.exec(
-    "PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;",
+    "PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;",
   );
   db.exec(SCHEMA);
+  // First-run fill under a write lock: several processes (e.g. parallel build workers) can open a new
+  // file at once, and without the lock each sees an empty table and inserts its own copy.
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    seedEmpty(db);
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+  return { db, cache: new Map() };
+}
+
+function seedEmpty(db: DatabaseSync) {
   if (!db.prepare("SELECT 1 FROM tables LIMIT 1").get()) {
     const insert = db.prepare(
       "INSERT INTO tables (label, seats, zone) VALUES (?, ?, ?)",
@@ -163,7 +178,6 @@ function open(): Db {
     for (const [name, bn, desc, cat, price, stock, sig] of MENU)
       insert.run(name, bn, desc, cat, price, stock, stock, sig ? 1 : 0);
   }
-  return { db, cache: new Map() };
 }
 
 const conn = (g.__durbinDb ??= open());
