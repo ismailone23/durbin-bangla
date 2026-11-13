@@ -80,7 +80,8 @@ export function pickupWindows() {
     now.day,
   );
   const out = [];
-  for (let m = s.openMin; m < s.closeMin; m += s.pickupWindowMin) {
+  // Takeaway runs all day, to the last pickup time, not just the breakfast service bookings cover.
+  for (let m = s.openMin; m <= s.pickupEndMin; m += s.pickupWindowMin) {
     const time = hhmm(m);
     const n = used.find((u) => u.pickup === time)?.n ?? 0;
     out.push({

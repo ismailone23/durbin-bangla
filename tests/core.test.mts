@@ -80,3 +80,10 @@ test("takeaway: stock can't go negative; cancel returns stock", () => {
   assert.equal(listMenu().find((m) => m.id === paya.id)!.remaining, paya.remaining);
   assert.equal(status(() => setOrderStatus(o.code, "ready")), 409, "cancelled is final");
 });
+
+test("takeaway pickup runs all day, to the last pickup time, not only the breakfast hours", () => {
+  const w = pickupWindows();
+  assert.equal(w[0].time, "07:00");
+  assert.equal(w.at(-1)!.time, "22:30");
+  assert.ok(w.some((x) => x.time === "18:15"));
+});

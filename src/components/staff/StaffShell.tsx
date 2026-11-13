@@ -106,6 +106,7 @@ export type Settings = {
   openMin: number;
   lastSlotMin: number;
   closeMin: number;
+  pickupEndMin: number;
   slotMin: number;
   avgStayMin: number;
   onlineShare: number;

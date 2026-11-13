@@ -38,7 +38,7 @@ export default function SettingsPage() {
       {note && <FieldDescription>{note}</FieldDescription>}
     </Field>
   );
-  const time = (key: "openMin" | "lastSlotMin" | "closeMin", label: string) => (
+  const time = (key: "openMin" | "lastSlotMin" | "closeMin" | "pickupEndMin", label: string) => (
     <Field>
       <FieldLabel htmlFor={key}>{label}</FieldLabel>
       <Input id={key} type="time" value={toTime(s[key])} onChange={(e) => e.target.value && set(key, fromTime(e.target.value))} />
@@ -81,6 +81,7 @@ export default function SettingsPage() {
               {time("openMin", "First slot")}
               {time("lastSlotMin", "Last slot starts")}
               {time("closeMin", "Service ends")}
+              {time("pickupEndMin", "Last takeaway pickup")}
               {num("slotMin", "Slot length (min)", 15, 120, "At least the average stay")}
               {num("avgStayMin", "Average stay (min)", 10, 120)}
               {num("graceMin", "Late grace (min)", 0, 60)}

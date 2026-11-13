@@ -5,6 +5,7 @@ export const settingsSchema = z.object({
   openMin: z.number().int().min(0).max(1439), // first slot / doors open
   lastSlotMin: z.number().int().min(0).max(1439), // last bookable slot start
   closeMin: z.number().int().min(0).max(1439), // breakfast service ends
+  pickupEndMin: z.number().int().min(0).max(1439), // last takeaway pickup (the kitchen serves all day)
   slotMin: z.number().int().min(15).max(120), // keep >= avgStayMin or tables get double-booked
   avgStayMin: z.number().int().min(10).max(120),
   onlineShare: z.number().min(0).max(1), // share of tables bookable online, rest for walk-ins
@@ -23,6 +24,7 @@ export const DEFAULTS: Settings = {
   openMin: 7 * 60, // restaurant opens 7 am (Fri 6:30)
   lastSlotMin: 11 * 60,
   closeMin: 12 * 60,
+  pickupEndMin: 22 * 60 + 30, // restaurant closes 11 pm
   slotMin: 45,
   avgStayMin: 40,
   onlineShare: 0.7,
@@ -45,7 +47,7 @@ export function getSettings(): Settings {
 
 export function saveSettings(patch: Partial<Settings>) {
   const next = settingsSchema.parse({ ...getSettings(), ...patch });
-  if (next.lastSlotMin < next.openMin || next.closeMin <= next.openMin)
+  if (next.lastSlotMin < next.openMin || next.closeMin <= next.openMin || next.pickupEndMin <= next.openMin)
     throw new Error("Opening hours are out of order");
   q.run(
     "INSERT INTO settings (key, value) VALUES ('main', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
